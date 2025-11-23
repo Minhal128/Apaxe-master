@@ -22,11 +22,6 @@ export default function Notifications() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      {/* Page Title */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Notifications</h1>
-      </div>
-
       {/* Filters and Table */}
       <Card>
         <CardContent className="p-4 sm:p-6">

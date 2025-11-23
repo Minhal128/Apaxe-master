@@ -16,11 +16,6 @@ export default function TradingRules() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6">
-      {/* Page Title */}
-      <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Trading Rules</h1>
-      </div>
-
       {/* General Rules */}
       <Card className="mb-6">
         <CardContent className="p-4 sm:p-6">

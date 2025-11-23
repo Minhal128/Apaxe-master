@@ -78,11 +78,6 @@ export default function Clients() {
 
   return (
     <div className="space-y-4 lg:space-y-6 p-4 lg:p-6">
-      {/* Page Title */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl lg:text-2xl font-semibold text-gray-900">Clients</h1>
-      </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         {/* Total Clients */}
