@@ -140,7 +140,7 @@ export default function TradingRules() {
     } catch (error) {
       console.error('Error saving trading rules:', error)
       console.error('Error response:', error.response?.data)
-      toast.error(error.response?.data?.message || 'Failed to save trading rules')
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Failed to save trading rules')
     } finally {
       setSaving(false)
     }

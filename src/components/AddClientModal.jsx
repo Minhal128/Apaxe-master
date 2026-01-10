@@ -57,7 +57,8 @@ export default function AddClientModal({ open, onOpenChange, onClientAdded }) {
       if (onClientAdded) onClientAdded()
     } catch (error) {
       console.error('Error creating client:', error)
-      toast.error(error.response?.data?.message || 'Failed to create client')
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || 'Failed to create client'
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }

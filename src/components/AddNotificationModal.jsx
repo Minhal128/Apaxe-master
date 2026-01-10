@@ -49,7 +49,7 @@ export default function AddNotificationModal({ open, onOpenChange, onNotificatio
       }
     } catch (error) {
       console.error('Error sending notification:', error)
-      toast.error(error.response?.data?.message || 'Failed to send notification')
+      toast.error(error.response?.data?.error?.message || error.response?.data?.message || 'Failed to send notification')
     } finally {
       setLoading(false)
     }

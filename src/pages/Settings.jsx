@@ -126,7 +126,7 @@ export default function Settings() {
             defaultCommissionType: commissionType,
             defaultCommissionValue: commissionValue,
             defaultProfitShare: profitSlider,
-            applyToNewClients
+            applyToNewClients: applyNewClients
           }
           break
         case 'notifications':
