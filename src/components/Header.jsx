@@ -1,12 +1,37 @@
 import { Search, Bell, ChevronDown, LogOut } from 'lucide-react'
 import { Input } from './ui/input'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { notificationApi } from '@/lib/api'
 
 export default function Header({ pageTitle = 'Dashboard' }) {
   const [showDropdown, setShowDropdown] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    fetchUnreadCount()
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await notificationApi.getUnreadCount()
+      setUnreadCount(response.data.data?.count || 0)
+    } catch (error) {
+      console.error('Error fetching unread count:', error)
+    }
+  }
 
   const handleLogout = () => {
-    window.location.href = 'https://forexsuperadmin.vercel.app/'
+    localStorage.removeItem('master_token')
+    window.location.href = '/signin'
+  }
+
+  const handleNotificationClick = () => {
+    navigate('/notifications')
   }
 
   return (
@@ -28,9 +53,16 @@ export default function Header({ pageTitle = 'Dashboard' }) {
           />
         </div>
         {/* Notification */}
-        <button className="relative p-2 hover:bg-gray-50 rounded-lg transition-colors">
+        <button 
+          className="relative p-2 hover:bg-gray-50 rounded-lg transition-colors"
+          onClick={handleNotificationClick}
+        >
           <Bell size={20} className="text-gray-600" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </button>
 
         {/* User Profile */}

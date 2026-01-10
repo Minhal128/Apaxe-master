@@ -1,22 +1,51 @@
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { Search, ChevronDown, MoreVertical } from 'lucide-react'
+import { fundsApi } from '@/lib/api'
+import FundsSkeleton from '@/components/FundsSkeleton'
+import { toast } from 'react-toastify'
 
 export default function Funds() {
-  const fundsData = [
-    { id: 'CLT-001', balance: '$2,50,000', margin: '$1,20,000', locked: '$1,20,000', limit: '$5,00,000', total: '$120,098', date: '2025-10-12', status: '68%' },
-    { id: 'CLT-001', balance: '$2,50,000', margin: '$1,20,000', locked: '$1,20,000', limit: '$5,00,000', total: '$120,098', date: '2025-10-12', status: '88%' },
-    { id: 'CLT-001', balance: '$2,50,000', margin: '$1,20,000', locked: '$1,20,000', limit: '$5,00,000', total: '$120,098', date: '2025-10-12', status: '54%' },
-    { id: 'CLT-001', balance: '$2,50,000', margin: '$1,20,000', locked: '$1,20,000', limit: '$5,00,000', total: '$120,098', date: '2025-10-12', status: '48%' },
-    { id: 'CLT-001', balance: '$2,50,000', margin: '$1,20,000', locked: '$1,20,000', limit: '$5,00,000', total: '$120,098', date: '2025-10-12', status: '78%' },
-  ]
+  const [data, setData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
 
+  useEffect(() => {
+    fetchFunds()
+  }, [])
+
+  const fetchFunds = async () => {
+    try {
+      setIsLoading(true)
+      const response = await fundsApi.getFundsOverview()
+      if (response.data && response.data.data) {
+        setData(response.data.data)
+      }
+    } catch (error) {
+      console.error('Error fetching funds:', error)
+      toast.error('Failed to load funds data')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (isLoading) return <FundsSkeleton />
+
+  const fundsList = data?.funds || []
+  const summary = data?.summary || {
+    totalCreditDistribution: '0',
+    totalDebitProcessed: '0',
+    totalBalance: '$0',
+    averageResponse: '0%'
+  }
+
+  const avgUtilization = parseInt(summary.averageResponse) || 0;
   const donutData = [
-    { name: 'Total Exposure', value: 56, color: '#6366f1' },
-    { name: 'Total Credit available', value: 38, color: '#8b5cf6' },
-    { name: 'Margin call', value: 28, color: '#d1d5db' },
+    { name: 'Total Exposure', value: avgUtilization, color: '#6366f1' },
+    { name: 'Total Credit available', value: Math.max(0, 100 - avgUtilization), color: '#8b5cf6' },
+    { name: 'Margin call', value: avgUtilization > 80 ? 15 : 5, color: '#d1d5db' },
   ]
 
   return (
@@ -27,10 +56,10 @@ export default function Funds() {
         <Card>
           <CardContent className="p-4 sm:p-6">
             <div className="text-sm text-gray-500 mb-1">Total Credit Distribution</div>
-            <div className="text-2xl sm:text-3xl font-semibold mb-4">23k</div>
+            <div className="text-2xl sm:text-3xl font-semibold mb-4">{summary.totalCreditDistribution}</div>
             <div className="h-12">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[{v:20},{v:22},{v:21},{v:23},{v:25},{v:24},{v:26},{v:28},{v:27},{v:29},{v:30},{v:28},{v:30},{v:32},{v:31},{v:33}]}>
+                <LineChart data={[{ v: 20 }, { v: 22 }, { v: 21 }, { v: 23 }, { v: 25 }, { v: 24 }, { v: 26 }, { v: 28 }, { v: 27 }, { v: 29 }, { v: 30 }, { v: 28 }, { v: 30 }, { v: 32 }, { v: 31 }, { v: 33 }]}>
                   <Line type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -42,10 +71,10 @@ export default function Funds() {
         <Card>
           <CardContent className="p-4 sm:p-6">
             <div className="text-sm text-gray-500 mb-1">Total Debit Processed</div>
-            <div className="text-2xl sm:text-3xl font-semibold mb-4">124</div>
+            <div className="text-2xl sm:text-3xl font-semibold mb-4">{summary.totalDebitProcessed}</div>
             <div className="h-12">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[{v:100},{v:110},{v:105},{v:115},{v:120},{v:118},{v:122},{v:125},{v:123},{v:127},{v:130},{v:128},{v:132},{v:135},{v:133},{v:124}]}>
+                <LineChart data={[{ v: 100 }, { v: 110 }, { v: 105 }, { v: 115 }, { v: 120 }, { v: 118 }, { v: 122 }, { v: 125 }, { v: 123 }, { v: 127 }, { v: 130 }, { v: 128 }, { v: 132 }, { v: 135 }, { v: 133 }, { v: 124 }]}>
                   <Line type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -57,10 +86,10 @@ export default function Funds() {
         <Card>
           <CardContent className="p-4 sm:p-6">
             <div className="text-sm text-gray-500 mb-1">Total Balance</div>
-            <div className="text-2xl sm:text-3xl font-semibold mb-4">$123k</div>
+            <div className="text-2xl sm:text-3xl font-semibold mb-4">{summary.totalBalance}</div>
             <div className="h-12">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[{v:80},{v:90},{v:85},{v:95},{v:100},{v:98},{v:102},{v:105},{v:103},{v:107},{v:110},{v:115},{v:118},{v:120},{v:122},{v:123}]}>
+                <LineChart data={[{ v: 80 }, { v: 90 }, { v: 85 }, { v: 95 }, { v: 100 }, { v: 98 }, { v: 102 }, { v: 105 }, { v: 103 }, { v: 107 }, { v: 110 }, { v: 115 }, { v: 118 }, { v: 120 }, { v: 122 }, { v: 123 }]}>
                   <Line type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -72,10 +101,10 @@ export default function Funds() {
         <Card>
           <CardContent className="p-4 sm:p-6">
             <div className="text-sm text-gray-500 mb-1">Average Response</div>
-            <div className="text-2xl sm:text-3xl font-semibold mb-4">65%</div>
+            <div className="text-2xl sm:text-3xl font-semibold mb-4">{summary.averageResponse}</div>
             <div className="h-12">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[{v:55},{v:57},{v:56},{v:58},{v:60},{v:59},{v:61},{v:62},{v:61.5},{v:63},{v:64},{v:63.5},{v:64.5},{v:65.5},{v:65},{v:65}]}>
+                <LineChart data={[{ v: 55 }, { v: 57 }, { v: 56 }, { v: 58 }, { v: 60 }, { v: 59 }, { v: 61 }, { v: 62 }, { v: 61.5 }, { v: 63 }, { v: 64 }, { v: 63.5 }, { v: 64.5 }, { v: 65.5 }, { v: 65 }, { v: 65 }]}>
                   <Line type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -138,7 +167,7 @@ export default function Funds() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {fundsData.map((fund, index) => (
+                  {fundsList.map((fund, index) => (
                     <TableRow key={index}>
                       <TableCell className="text-gray-900 text-xs sm:text-sm">{fund.id}</TableCell>
                       <TableCell className="text-gray-900 text-xs sm:text-sm">{fund.balance}</TableCell>
@@ -149,13 +178,12 @@ export default function Funds() {
                       <TableCell className="text-gray-900 text-xs sm:text-sm">{fund.date}</TableCell>
                       <TableCell>
                         <span
-                          className={`text-xs sm:text-sm font-medium ${
-                            parseFloat(fund.status) >= 70
-                              ? 'text-green-500'
-                              : parseFloat(fund.status) >= 60
+                          className={`text-xs sm:text-sm font-medium ${parseFloat(fund.status) >= 70
+                            ? 'text-green-500'
+                            : parseFloat(fund.status) >= 60
                               ? 'text-red-500'
                               : 'text-blue-500'
-                          }`}
+                            }`}
                         >
                           {fund.status}
                         </span>

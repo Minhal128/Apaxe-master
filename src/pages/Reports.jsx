@@ -4,56 +4,176 @@ import { Input } from '@/components/ui/input'
 import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { Search, ChevronDown, Download, MoreVertical, Filter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { reportsApi, tradingApi } from '@/lib/api'
+import ReportsSkeleton from '@/components/ReportsSkeleton'
+import { toast } from 'react-toastify'
+import * as XLSX from 'xlsx'
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState('trading')
   const [showFilters, setShowFilters] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isTabLoading, setIsTabLoading] = useState(false)
+  const [statsData, setStatsData] = useState(null)
 
-  const pnlData = [
-    { date: 'Sept 10', value: 40, gray: 50 },
-    { date: 'Sept 11', value: 10, gray: 50 },
-    { date: 'Sept 12', value: 30, gray: 50 },
-    { date: 'Sept 13', value: 25, gray: 50 },
-    { date: 'Sept 14', value: 30, gray: 50 },
-    { date: 'Sept 15', value: 15, gray: 50 },
-    { date: 'Sept 16', value: 20, gray: 50 },
-  ]
+  // Tab-specific data
+  const [tradingReportData, setTradingReportData] = useState([])
+  const [pnlReportData, setPnlReportData] = useState([])
+  const [commissionReportData, setCommissionReportData] = useState([])
+  const [ledgerReportData, setLedgerReportData] = useState([])
+  const [exposureReportData, setExposureReportData] = useState([])
 
-  const tradingReportData = [
-    { date: '2025-10-15\n10:32 AM', client: 'Amit Sharma', market: 'NSE-F&O', instrument: 'NIFTY0CTM5600CE', type: 'Market', qty: '20', price: '$118.50', pnl: '$+1240' },
-    { date: '2025-10-15\n10:32 AM', client: 'Amit Sharma', market: 'NSE-F&O', instrument: 'NIFTY0CTM5600CE', type: 'Market', qty: '20', price: '$118.50', pnl: '$+1240' },
-    { date: '2025-10-15\n10:32 AM', client: 'Amit Sharma', market: 'NSE-F&O', instrument: 'NIFTY0CTM5600CE', type: 'Market', qty: '20', price: '$118.50', pnl: '$+1240' },
-    { date: '2025-10-15\n10:32 AM', client: 'Amit Sharma', market: 'NSE-F&O', instrument: 'NIFTY0CTM5600CE', type: 'Market', qty: '20', price: '$118.50', pnl: '$+1240' },
-  ]
+  useEffect(() => {
+    fetchStats()
+  }, [])
 
-  const pnlReportData = [
-    { client: 'Amit Sharma', trades: '54', realized: '+$12,800', unrealized: '+$2,330', net: '+$15,100' },
-    { client: 'Amit Sharma', trades: '54', realized: '+$12,800', unrealized: '+$2,330', net: '+$15,100' },
-    { client: 'Amit Sharma', trades: '54', realized: '+$12,800', unrealized: '+$2,330', net: '+$15,100' },
-    { client: 'Amit Sharma', trades: '54', realized: '+$12,800', unrealized: '+$2,330', net: '+$15,100' },
-  ]
+  useEffect(() => {
+    fetchTabData()
+  }, [activeTab])
 
-  const commissionReportData = [
-    { client: 'Deepa Singh', segment: 'MCX', type: 'Fixed', rate: '$50 / lot', managerShare: '$250', earned: '$250' },
-    { client: 'Deepa Singh', segment: 'MCX', type: 'Fixed', rate: '$50 / lot', managerShare: '$250', earned: '$250' },
-    { client: 'Deepa Singh', segment: 'MCX', type: 'Fixed', rate: '$50 / lot', managerShare: '$250', earned: '$250' },
-    { client: 'Deepa Singh', segment: 'MCX', type: 'Fixed', rate: '$50 / lot', managerShare: '$250', earned: '$250' },
-  ]
+  const fetchStats = async () => {
+    try {
+      setIsLoading(true)
+      const response = await reportsApi.getReportStats()
+      if (response.data && response.data.data) {
+        setStatsData(response.data.data)
+      }
+    } catch (error) {
+      console.error('Error fetching report stats:', error)
+      toast.error('Failed to load report statistics')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-  const ledgerReportData = [
-    { date: '2025-10-14', client: 'Ravi Nair', type: 'Debit', amount: '$50,000', description: 'Admin Top-up', balance: '$90,000' },
-    { date: '2025-10-14', client: 'Ravi Nair', type: 'Debit', amount: '$50,000', description: 'Admin Top-up', balance: '$90,000' },
-    { date: '2025-10-14', client: 'Ravi Nair', type: 'Debit', amount: '$50,000', description: 'Admin Top-up', balance: '$90,000' },
-    { date: '2025-10-14', client: 'Ravi Nair', type: 'Debit', amount: '$50,000', description: 'Admin Top-up', balance: '$90,000' },
-  ]
+  const fetchTabData = async () => {
+    try {
+      setIsTabLoading(true)
+      let response
+      switch (activeTab) {
+        case 'trading':
+          response = await tradingApi.getClientTrades()
+          setTradingReportData(response.data.data.trades || [])
+          break
+        case 'pnl':
+          response = await reportsApi.getPnLReport()
+          setPnlReportData(response.data.data || [])
+          break
+        case 'commission':
+          response = await reportsApi.getCommissionReport()
+          setCommissionReportData(response.data.data || [])
+          break
+        case 'ledger':
+          response = await reportsApi.getLedgerReport()
+          setLedgerReportData(response.data.data || [])
+          break
+        case 'exposure':
+          response = await reportsApi.getExposureReport()
+          setExposureReportData(response.data.data || [])
+          break
+      }
+    } catch (error) {
+      console.error(`Error fetching ${activeTab} report:`, error)
+      toast.error(`Failed to load ${activeTab} report`)
+    } finally {
+      setIsTabLoading(false)
+    }
+  }
 
-  const exposureReportData = [
-    { client: 'Ravi Nair', creditLimit: '$100,000', marginUsed: '$50,000', exposure: '$75,000', status: 'Safe' },
-    { client: 'Ravi Nair', creditLimit: '$100,000', marginUsed: '$50,000', exposure: '$75,000', status: 'Critical' },
-    { client: 'Ravi Nair', creditLimit: '$100,000', marginUsed: '$50,000', exposure: '$75,000', status: 'Warning' },
-    { client: 'Ravi Nair', creditLimit: '$100,000', marginUsed: '$50,000', exposure: '$75,000', status: 'Safe' },
-  ]
+  if (isLoading) return <ReportsSkeleton />
+
+
+  const stats = statsData?.stats || {
+    totalClientsManaged: 0,
+    totalTradesToday: 0,
+    totalPnLWeekly: '$0.00',
+    totalCommissionEarned: '$0.00'
+  }
+
+  const pnlData = statsData?.pnlHistory || []
+
+  const handleExport = () => {
+    try {
+      let data = []
+      let filename = ''
+
+      switch (activeTab) {
+        case 'trading':
+          data = tradingReportData.map(item => ({
+            'Date': item.date,
+            'Client Name': item.client,
+            'Market Segment': item.market,
+            'Instrument': item.instrument,
+            'Order Type': item.type,
+            'Quantity': item.qty,
+            'Price': item.price,
+            'P&L': item.pnl
+          }))
+          filename = 'Trading_Report.xlsx'
+          break
+        case 'pnl':
+          data = pnlReportData.map(item => ({
+            'Client Name': item.client,
+            'Total Trades': item.trades,
+            'Realized P&L': item.realized,
+            'Unrealized P&L': item.unrealized,
+            'Net P&L': item.net
+          }))
+          filename = 'PnL_Report.xlsx'
+          break
+        case 'commission':
+          data = commissionReportData.map(item => ({
+            'Client Name': item.client,
+            'Segment': item.segment,
+            'Commission Type': item.type,
+            'Rate': item.rate,
+            'Manager Share': item.managerShare,
+            'Total Earned': item.earned
+          }))
+          filename = 'Commission_Report.xlsx'
+          break
+        case 'ledger':
+          data = ledgerReportData.map(item => ({
+            'Date': item.date,
+            'Client': item.client,
+            'Type': item.type,
+            'Amount': item.amount,
+            'Description': item.description,
+            'Balance After': item.balance
+          }))
+          filename = 'Ledger_Report.xlsx'
+          break
+        case 'exposure':
+          data = exposureReportData.map(item => ({
+            'Client': item.client,
+            'Credit Limit': item.creditLimit,
+            'Margin Used': item.marginUsed,
+            'Exposure': item.exposure,
+            'Status': item.status
+          }))
+          filename = 'Exposure_Report.xlsx'
+          break
+      }
+
+      if (data.length === 0) {
+        toast.warning('No data to export')
+        return
+      }
+
+      // Create worksheet and workbook
+      const worksheet = XLSX.utils.json_to_sheet(data)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Report')
+
+      // Generate and download file
+      XLSX.writeFile(workbook, filename)
+      toast.success('Report exported successfully')
+    } catch (error) {
+      console.error('Error exporting report:', error)
+      toast.error('Failed to export report')
+    }
+  }
 
   const tabs = [
     { id: 'trading', label: 'Trading Report' },
@@ -97,7 +217,7 @@ export default function Reports() {
             </CardContent>
           </Card>
         ))
-      
+
       case 'pnl':
         return data.map((item, index) => (
           <Card key={index} className="mb-3">
@@ -123,7 +243,7 @@ export default function Reports() {
             </CardContent>
           </Card>
         ))
-      
+
       case 'commission':
         return data.map((item, index) => (
           <Card key={index} className="mb-3">
@@ -153,7 +273,7 @@ export default function Reports() {
             </CardContent>
           </Card>
         ))
-      
+
       case 'ledger':
         return data.map((item, index) => (
           <Card key={index} className="mb-3">
@@ -183,20 +303,19 @@ export default function Reports() {
             </CardContent>
           </Card>
         ))
-      
+
       case 'exposure':
         return data.map((item, index) => (
           <Card key={index} className="mb-3">
             <CardContent className="p-4">
               <div className="flex justify-between items-start mb-3">
                 <div className="font-semibold text-gray-900">{item.client}</div>
-                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                  item.status === 'Safe' 
-                    ? 'bg-green-100 text-green-600' 
-                    : item.status === 'Critical'
+                <span className={`px-2 py-1 rounded text-xs font-medium ${item.status === 'Safe'
+                  ? 'bg-green-100 text-green-600'
+                  : item.status === 'Critical'
                     ? 'bg-red-100 text-red-600'
                     : 'bg-orange-100 text-orange-600'
-                }`}>
+                  }`}>
                   {item.status}
                 </span>
               </div>
@@ -217,7 +336,7 @@ export default function Reports() {
             </CardContent>
           </Card>
         ))
-      
+
       default:
         return null
     }
@@ -230,10 +349,10 @@ export default function Reports() {
         <Card className="w-full">
           <CardContent className="p-4 lg:p-6">
             <div className="text-sm text-gray-500 mb-1">Total Clients Managed</div>
-            <div className="text-2xl lg:text-3xl font-semibold mb-3 lg:mb-4">123</div>
+            <div className="text-2xl lg:text-3xl font-semibold mb-3 lg:mb-4">{stats.totalClientsManaged}</div>
             <div className="h-10 lg:h-12">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[{v:100},{v:105},{v:102},{v:108},{v:112},{v:110},{v:115},{v:118},{v:116},{v:120},{v:123}]}>
+                <LineChart data={[{ v: 100 }, { v: 105 }, { v: 102 }, { v: 108 }, { v: 112 }, { v: 110 }, { v: 115 }, { v: 118 }, { v: 116 }, { v: 120 }, { v: 123 }]}>
                   <Line type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -244,10 +363,10 @@ export default function Reports() {
         <Card className="w-full">
           <CardContent className="p-4 lg:p-6">
             <div className="text-sm text-gray-500 mb-1">Total Trades today</div>
-            <div className="text-2xl lg:text-3xl font-semibold mb-3 lg:mb-4">124</div>
+            <div className="text-2xl lg:text-3xl font-semibold mb-3 lg:mb-4">{stats.totalTradesToday}</div>
             <div className="h-10 lg:h-12">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[{v:100},{v:110},{v:105},{v:115},{v:120},{v:118},{v:122},{v:125},{v:123},{v:127},{v:124}]}>
+                <LineChart data={[{ v: 100 }, { v: 110 }, { v: 105 }, { v: 115 }, { v: 120 }, { v: 118 }, { v: 122 }, { v: 125 }, { v: 123 }, { v: 127 }, { v: 124 }]}>
                   <Line type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -258,10 +377,10 @@ export default function Reports() {
         <Card className="w-full">
           <CardContent className="p-4 lg:p-6">
             <div className="text-sm text-gray-500 mb-1">Total P&L (This week)</div>
-            <div className="text-2xl lg:text-3xl font-semibold mb-3 lg:mb-4">$123k</div>
+            <div className="text-2xl lg:text-3xl font-semibold mb-3 lg:mb-4">{stats.totalPnLWeekly}</div>
             <div className="h-10 lg:h-12">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[{v:80},{v:90},{v:85},{v:95},{v:100},{v:98},{v:105},{v:110},{v:115},{v:120},{v:123}]}>
+                <LineChart data={[{ v: 80 }, { v: 90 }, { v: 85 }, { v: 95 }, { v: 100 }, { v: 98 }, { v: 105 }, { v: 110 }, { v: 115 }, { v: 120 }, { v: 123 }]}>
                   <Line type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -272,10 +391,10 @@ export default function Reports() {
         <Card className="w-full">
           <CardContent className="p-4 lg:p-6">
             <div className="text-sm text-gray-500 mb-1">Total Commission Earned</div>
-            <div className="text-2xl lg:text-3xl font-semibold mb-3 lg:mb-4">$400k</div>
+            <div className="text-2xl lg:text-3xl font-semibold mb-3 lg:mb-4">{stats.totalCommissionEarned}</div>
             <div className="h-10 lg:h-12">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[{v:300},{v:320},{v:340},{v:350},{v:360},{v:370},{v:380},{v:385},{v:390},{v:395},{v:400}]}>
+                <LineChart data={[{ v: 300 }, { v: 320 }, { v: 340 }, { v: 350 }, { v: 360 }, { v: 370 }, { v: 380 }, { v: 385 }, { v: 390 }, { v: 395 }, { v: 400 }]}>
                   <Line type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -289,27 +408,14 @@ export default function Reports() {
         <CardContent className="p-4 lg:p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4 lg:mb-6">
             <h3 className="text-lg font-semibold text-gray-900">P&L Overview</h3>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Summary</span>
-                <button className="px-3 py-1.5 text-sm text-green-500 bg-green-50 rounded flex items-center gap-1">
-                  Market Type
-                  <ChevronDown size={14} />
-                </button>
-              </div>
-              <button className="px-3 py-1.5 text-sm text-gray-600 rounded flex items-center gap-1">
-                Last 14 Days
-                <ChevronDown size={14} />
-              </button>
-            </div>
           </div>
 
           <div className="h-48 lg:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={pnlData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="date" 
+                <XAxis
+                  dataKey="date"
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 10, fill: '#9ca3af' }}
@@ -337,11 +443,10 @@ export default function Reports() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap rounded-lg ${
-                  activeTab === tab.id
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap rounded-lg ${activeTab === tab.id
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 {tab.label}
               </button>
@@ -355,11 +460,10 @@ export default function Reports() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 text-sm font-medium transition-colors relative ${
-                activeTab === tab.id
-                  ? 'text-green-500'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === tab.id
+                ? 'text-green-500'
+                : 'text-gray-600 hover:text-gray-900'
+                }`}
             >
               {tab.label}
               {activeTab === tab.id && (
@@ -375,52 +479,20 @@ export default function Reports() {
             {/* Filters */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4 lg:mb-6">
               <div className="flex flex-col lg:flex-row lg:items-center gap-3 w-full">
-                {/* Mobile Filter Toggle */}
-                <div className="lg:hidden flex items-center justify-between w-full">
-                  <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                    <Input
-                      type="text"
-                      placeholder="Search"
-                      className="pl-9 w-full bg-white border-gray-200"
-                    />
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="ml-2"
-                    onClick={() => setShowFilters(!showFilters)}
-                  >
-                    <Filter size={18} />
-                  </Button>
-                </div>
-
-                {/* Desktop Search */}
-                <div className="hidden lg:block relative">
+                {/* Search */}
+                <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <Input
                     type="text"
                     placeholder="Search"
-                    className="pl-9 w-64 bg-white border-gray-200"
+                    className="pl-9 w-full bg-white border-gray-200"
                   />
                 </div>
-
-                {/* Filters - Hidden on mobile by default */}
-                <div className={`${showFilters ? 'flex' : 'hidden'} lg:flex flex-col lg:flex-row items-start lg:items-center gap-3 w-full lg:w-auto`}>
-                  <button className="w-full lg:w-auto px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between lg:justify-start gap-2">
-                    Client
-                    <ChevronDown size={16} />
-                  </button>
-                  <button className="w-full lg:w-auto px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between lg:justify-start gap-2">
-                    Segment
-                    <ChevronDown size={16} />
-                  </button>
-                  <button className="w-full lg:w-auto px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between lg:justify-start gap-2">
-                    Date range
-                    <ChevronDown size={16} />
-                  </button>
-                </div>
               </div>
-              <Button className="bg-green-500 hover:bg-green-600 text-white w-full lg:w-auto mt-2 lg:mt-0">
+              <Button
+                className="bg-green-500 hover:bg-green-600 text-white w-full lg:w-auto"
+                onClick={handleExport}
+              >
                 <Download size={18} />
                 <span className="ml-2">Export</span>
               </Button>
@@ -454,23 +526,29 @@ export default function Reports() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tradingReportData.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="text-gray-900 whitespace-pre-line text-xs">{item.date}</TableCell>
-                        <TableCell className="text-gray-900">{item.client}</TableCell>
-                        <TableCell className="text-gray-900">{item.market}</TableCell>
-                        <TableCell className="text-gray-900">{item.instrument}</TableCell>
-                        <TableCell className="text-gray-900">{item.type}</TableCell>
-                        <TableCell className="text-gray-900">{item.qty}</TableCell>
-                        <TableCell className="text-gray-900">{item.price}</TableCell>
-                        <TableCell className="text-gray-900">{item.pnl}</TableCell>
-                        <TableCell>
-                          <button className="text-gray-400 hover:text-gray-600">
-                            <MoreVertical size={18} />
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {isTabLoading ? (
+                      <TableRow><TableCell colSpan={9} className="text-center py-10 text-gray-400 italic">Loading...</TableCell></TableRow>
+                    ) : tradingReportData.length === 0 ? (
+                      <TableRow><TableCell colSpan={9} className="text-center py-10 text-gray-400">No trades found</TableCell></TableRow>
+                    ) : (
+                      tradingReportData.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="text-gray-900 whitespace-pre-line text-xs">{item.date}</TableCell>
+                          <TableCell className="text-gray-900">{item.client}</TableCell>
+                          <TableCell className="text-gray-900">{item.market}</TableCell>
+                          <TableCell className="text-gray-900">{item.instrument}</TableCell>
+                          <TableCell className="text-gray-900">{item.type}</TableCell>
+                          <TableCell className="text-gray-900">{item.qty}</TableCell>
+                          <TableCell className="text-gray-900">{item.price}</TableCell>
+                          <TableCell className="text-gray-900">{item.pnl}</TableCell>
+                          <TableCell>
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <MoreVertical size={18} />
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               )}
@@ -489,20 +567,26 @@ export default function Reports() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pnlReportData.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="text-gray-900">{item.client}</TableCell>
-                        <TableCell className="text-gray-900">{item.trades}</TableCell>
-                        <TableCell className="text-green-500">{item.realized}</TableCell>
-                        <TableCell className="text-green-500">{item.unrealized}</TableCell>
-                        <TableCell className="text-green-500">{item.net}</TableCell>
-                        <TableCell>
-                          <button className="text-gray-400 hover:text-gray-600">
-                            <MoreVertical size={18} />
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {isTabLoading ? (
+                      <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400 italic">Loading...</TableCell></TableRow>
+                    ) : pnlReportData.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400">No data found</TableCell></TableRow>
+                    ) : (
+                      pnlReportData.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="text-gray-900">{item.client}</TableCell>
+                          <TableCell className="text-gray-900">{item.trades}</TableCell>
+                          <TableCell className={item.realized.includes('-') ? 'text-red-500' : 'text-green-500'}>{item.realized}</TableCell>
+                          <TableCell className={item.unrealized.includes('-') ? 'text-red-500' : 'text-green-500'}>{item.unrealized}</TableCell>
+                          <TableCell className={item.net.includes('-') ? 'text-red-500' : 'text-green-500'}>{item.net}</TableCell>
+                          <TableCell>
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <MoreVertical size={18} />
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               )}
@@ -522,21 +606,27 @@ export default function Reports() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {commissionReportData.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="text-gray-900">{item.client}</TableCell>
-                        <TableCell className="text-gray-900">{item.segment}</TableCell>
-                        <TableCell className="text-gray-900">{item.type}</TableCell>
-                        <TableCell className="text-gray-900">{item.rate}</TableCell>
-                        <TableCell className="text-gray-900">{item.managerShare}</TableCell>
-                        <TableCell className="text-gray-900">{item.earned}</TableCell>
-                        <TableCell>
-                          <button className="text-gray-400 hover:text-gray-600">
-                            <MoreVertical size={18} />
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {isTabLoading ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-10 text-gray-400 italic">Loading...</TableCell></TableRow>
+                    ) : commissionReportData.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-10 text-gray-400">No commissions found</TableCell></TableRow>
+                    ) : (
+                      commissionReportData.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="text-gray-900">{item.client}</TableCell>
+                          <TableCell className="text-gray-900">{item.segment}</TableCell>
+                          <TableCell className="text-gray-900">{item.type}</TableCell>
+                          <TableCell className="text-gray-900">{item.rate}</TableCell>
+                          <TableCell className="text-gray-900">{item.managerShare}</TableCell>
+                          <TableCell className="text-gray-900">{item.earned}</TableCell>
+                          <TableCell>
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <MoreVertical size={18} />
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               )}
@@ -556,21 +646,27 @@ export default function Reports() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {ledgerReportData.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="text-gray-900">{item.date}</TableCell>
-                        <TableCell className="text-gray-900">{item.client}</TableCell>
-                        <TableCell className="text-gray-900">{item.type}</TableCell>
-                        <TableCell className="text-gray-900">{item.amount}</TableCell>
-                        <TableCell className="text-gray-900">{item.description}</TableCell>
-                        <TableCell className="text-gray-900">{item.balance}</TableCell>
-                        <TableCell>
-                          <button className="text-gray-400 hover:text-gray-600">
-                            <MoreVertical size={18} />
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {isTabLoading ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-10 text-gray-400 italic">Loading...</TableCell></TableRow>
+                    ) : ledgerReportData.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-10 text-gray-400">No ledger entries found</TableCell></TableRow>
+                    ) : (
+                      ledgerReportData.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="text-gray-900">{item.date}</TableCell>
+                          <TableCell className="text-gray-900">{item.client}</TableCell>
+                          <TableCell className="text-gray-900">{item.type}</TableCell>
+                          <TableCell className="text-gray-900">{item.amount}</TableCell>
+                          <TableCell className="text-gray-900">{item.description}</TableCell>
+                          <TableCell className="text-gray-900">{item.balance}</TableCell>
+                          <TableCell>
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <MoreVertical size={18} />
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               )}
@@ -589,30 +685,35 @@ export default function Reports() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {exposureReportData.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="text-gray-900">{item.client}</TableCell>
-                        <TableCell className="text-gray-900">{item.creditLimit}</TableCell>
-                        <TableCell className="text-gray-900">{item.marginUsed}</TableCell>
-                        <TableCell className="text-gray-900">{item.exposure}</TableCell>
-                        <TableCell>
-                          <span className={`px-3 py-1 rounded text-xs font-medium ${
-                            item.status === 'Safe' 
-                              ? 'bg-green-100 text-green-600' 
+                    {isTabLoading ? (
+                      <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400 italic">Loading...</TableCell></TableRow>
+                    ) : exposureReportData.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400">No data found</TableCell></TableRow>
+                    ) : (
+                      exposureReportData.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="text-gray-900">{item.client}</TableCell>
+                          <TableCell className="text-gray-900">{item.creditLimit}</TableCell>
+                          <TableCell className="text-gray-900">{item.marginUsed}</TableCell>
+                          <TableCell className="text-gray-900">{item.exposure}</TableCell>
+                          <TableCell>
+                            <span className={`px-3 py-1 rounded text-xs font-medium ${item.status === 'Safe'
+                              ? 'bg-green-100 text-green-600'
                               : item.status === 'Critical'
-                              ? 'bg-red-100 text-red-600'
-                              : 'bg-orange-100 text-orange-600'
-                          }`}>
-                            {item.status}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <button className="text-gray-400 hover:text-gray-600">
-                            <MoreVertical size={18} />
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                                ? 'bg-red-100 text-red-600'
+                                : 'bg-orange-100 text-orange-600'
+                              }`}>
+                              {item.status}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <MoreVertical size={18} />
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               )}
